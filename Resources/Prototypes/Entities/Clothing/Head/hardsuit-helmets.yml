@@ -468,8 +468,8 @@
 
 #Pirate Captain Hardsuit
 - type: entity
-  parent: ClothingHeadHardsuitBase
-  id: ClothingHeadHelmetHardsuitPirateCap
+  parent: ClothingHeadHardsuitWithLightBase
+  id: ClothingHeadHelmetHardsuitCybersun
   noSpawn: true
   name: pirate captain's hardsuit helmet
   suffix: Pirate
@@ -478,7 +478,9 @@
   - type: Sprite
     sprite: Clothing/Head/Hardsuits/piratecaptainhelm.rsi
   - type: Clothing
-    sprite: Clothing/Head/Hardsuits/piratecaptainhelm.rsi
+    sprite: Clothing/Head/Hardsuits/cybersun.rsi
+  - type: PointLight
+    color: red
   - type: PressureProtection
     highPressureMultiplier: 0.3
     lowPressureMultiplier: 1000
