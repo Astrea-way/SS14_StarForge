@@ -1,0 +1,12 @@
+ent-MachineParticleAcceleratorEndCapCircuitboard = торцевая заглушка УЧ
+    .desc = { ent-BaseMachineCircuitboard.desc }
+ent-MachineParticleAcceleratorFuelChamberCircuitboard = топливная камера УЧ
+    .desc = { ent-BaseMachineCircuitboard.desc }
+ent-MachineParticleAcceleratorPowerBoxCircuitboard = блок питания УЧ
+    .desc = { ent-BaseMachineCircuitboard.desc }
+ent-MachineParticleAcceleratorEmitterStarboardCircuitboard = PA starboard emitter board
+    .desc = A machine board for a particle accelerator left emitter
+ent-MachineParticleAcceleratorEmitterForeCircuitboard = PA fore emitter board
+    .desc = A machine board for a particle accelerator center emitter
+ent-MachineParticleAcceleratorEmitterPortCircuitboard = PA port emitter board
+    .desc = A machine board for a particle accelerator right emitter
