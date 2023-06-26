@@ -1,0 +1,19 @@
+- type: entity
+  name: Zabota
+  parent: BaseWeaponRevolver
+  id: WeaponRevolverZabota
+  description: Syndicate revolver. Uses .45 magnum and .45 acp ammo.
+  components:
+  - type: Sprite
+    sprite: Objects/Weapons/Guns/Revolvers/zabota.rsi
+  - type: Clothing
+    sprite: Objects/Weapons/Guns/Revolvers/zabota.rsi
+  - type: RevolverAmmoProvider
+    capacity: 6
+    whitelist:
+      tags:
+        - CartridgeMagnum
+        - SpeedLoaderMagnum
+        - CartridgePistol45acp
+    chambers: [ True, True, True, True, True, True ]
+    ammoSlots: [ null, null, null, null, null, null ]

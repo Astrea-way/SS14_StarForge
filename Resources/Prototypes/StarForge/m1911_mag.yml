@@ -1,0 +1,65 @@
+- type: entity
+  id: BaseM1911MagazinePistol
+  name: pistol magazine (.45 acp)
+  parent: BaseItem
+  components:
+  - type: Tag
+    tags:
+      - MagazinePistol45acp
+  - type: BallisticAmmoProvider
+    proto: CartridgePistol45acp
+    mayTransfer: true
+    whitelist:
+      tags:
+        - CartridgePistol45acp
+    capacity: 7
+  - type: Item
+    size: 5
+  - type: ContainerContainer
+    containers:
+      ballistic-ammo: !type:Container
+  - type: Sprite
+    sprite: Objects/Weapons/Guns/Ammunition/Magazine/Pistol/m1911_mag.rsi
+    layers:
+    - state: base
+      map: ["enum.GunVisualLayers.Base"]
+    - state: mag-1
+      map: ["enum.GunVisualLayers.Mag"]
+  - type: MagazineVisuals
+    magState: mag
+    steps: 5
+    zeroVisible: false
+  - type: Appearance
+
+- type: entity
+  id: M1911ExtendedMagazinePistol
+  name: extended pistol magazine (.45 acp)
+  parent: BaseItem
+  components:
+  - type: Tag
+    tags:
+      - MagazinePistolHighCapacity45acp
+  - type: BallisticAmmoProvider
+    proto: CartridgePistol45acp
+    mayTransfer: true
+    whitelist:
+      tags:
+        - CartridgePistol45acp
+    capacity: 10
+  - type: Item
+    size: 5
+  - type: ContainerContainer
+    containers:
+      ballistic-ammo: !type:Container
+  - type: Sprite
+    sprite: Objects/Weapons/Guns/Ammunition/Magazine/Pistol/m1911_high_capacity_mag.rsi
+    layers:
+    - state: base
+      map: ["enum.GunVisualLayers.Base"]
+    - state: mag-1
+      map: ["enum.GunVisualLayers.Mag"]
+  - type: MagazineVisuals
+    magState: mag
+    steps: 5
+    zeroVisible: false
+  - type: Appearance

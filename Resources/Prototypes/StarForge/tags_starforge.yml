@@ -1,0 +1,8 @@
+- type: Tag
+  id: CartridgePistol45acp
+ 
+- type: Tag
+  id: MagazinePistol45acp
+  
+- type: Tag
+  id: MagazinePistolHighCapacity45acp

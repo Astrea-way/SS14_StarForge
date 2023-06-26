@@ -1,0 +1,29 @@
+- type: entity
+  id: BaseCartridgePistol45acp
+  name: basecartridge (.45 acp)
+  parent: BaseCartridge
+  abstract: true
+  components:
+  - type: Tag
+    tags:
+      - Cartridge
+      - CartridgePistol45acp
+  - type: CartridgeAmmo
+    proto: BulletPistol
+  - type: Sprite
+    sprite: Objects/Weapons/Guns/Ammunition/Casings/45acp_casing.rsi
+    layers:
+    - state: base
+      map: ["enum.AmmoVisualLayers.Base"]
+  - type: Appearance
+  - type: SpentAmmoVisuals
+  - type: StaticPrice
+    price: 10
+    
+- type: entity
+  id: CartridgePistol45acp
+  name: cartridge (.45 acp)
+  parent: BaseCartridgePistol45acp
+  components:
+  - type: CartridgeAmmo
+    proto: BulletPistol

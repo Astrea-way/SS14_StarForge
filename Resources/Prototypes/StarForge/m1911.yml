@@ -1,0 +1,58 @@
+- type: entity
+  name: m1911
+  parent: BaseWeaponPistol
+  id: WeaponPistolm1911
+  description: m1911. Power. Rage.
+  components:
+  - type: Sprite
+    sprite: Objects/Weapons/Guns/Pistols/m1911.rsi
+    layers:
+    - state: base
+      map: ["enum.GunVisualLayers.Base"]
+    - state: mag-0
+      map: ["enum.GunVisualLayers.Mag"]
+  - type: Clothing
+    sprite: Objects/Weapons/Guns/Pistols/m1911.rsi
+  - type: Gun
+    fireRate: 5
+    soundGunshot:
+      path: /Audio/Weapons/Guns/Gunshots/mk58.ogg
+      params:
+        volume: 5
+    availableModes:
+    - SemiAuto
+  - type: ItemSlots
+    slots:
+      gun_magazine:
+        name: Magazine
+        startingItem: BaseM1911MagazinePistol
+        insertSound: /Audio/Weapons/Guns/MagIn/pistol_magin.ogg
+        ejectSound: /Audio/Weapons/Guns/MagOut/pistol_magout.ogg
+        priority: 2
+        whitelist:
+          tags:
+            - MagazinePistol45acp
+            - MagazinePistolHighCapacity45acp
+      gun_chamber:
+        name: Chamber
+        startingItem: CartridgePistol45acp
+        priority: 1
+        whitelist:
+          tags:
+            - CartridgePistol45acp
+  - type: ContainerContainer
+    containers:
+      gun_magazine: !type:ContainerSlot
+      gun_chamber: !type:ContainerSlot
+
+- type: entity
+  name: m1911i
+  parent: WeaponPistolm1911
+  id: WeaponPistolm1911_infantry
+  description: A rugged, robust handgun.
+  components:
+  - type: Sprite
+    sprite: Objects/Weapons/Guns/Pistols/m1911_Infantry.rsi
+  - type: Clothing
+    sprite: Objects/Weapons/Guns/Pistols/m1911_Infantry.rsi
+  - type: Gun
