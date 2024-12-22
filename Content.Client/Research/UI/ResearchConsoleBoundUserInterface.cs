@@ -1,28 +1,29 @@
 using Content.Shared.Research.Components;
+using Content.Shared.Research.Prototypes;
 using JetBrains.Annotations;
-using Robust.Client.GameObjects;
+using Robust.Client.UserInterface;
+using Robust.Shared.Prototypes;
 
 namespace Content.Client.Research.UI;
 
 [UsedImplicitly]
 public sealed class ResearchConsoleBoundUserInterface : BoundUserInterface
 {
-
+    [ViewVariables]
     private ResearchConsoleMenu? _consoleMenu;
 
-
-    public ResearchConsoleBoundUserInterface(ClientUserInterfaceComponent owner, Enum uiKey) : base(owner, uiKey)
+    public ResearchConsoleBoundUserInterface(EntityUid owner, Enum uiKey) : base(owner, uiKey)
     {
-
     }
 
     protected override void Open()
     {
         base.Open();
 
-        var owner = Owner.Owner;
+        var owner = Owner;
 
-        _consoleMenu = new ResearchConsoleMenu(owner);
+        _consoleMenu = this.CreateWindow<ResearchConsoleMenu>();
+        _consoleMenu.SetEntity(owner);
 
         _consoleMenu.OnTechnologyCardPressed += id =>
         {
@@ -33,10 +34,20 @@ public sealed class ResearchConsoleBoundUserInterface : BoundUserInterface
         {
             SendMessage(new ConsoleServerSelectionMessage());
         };
+    }
 
-        _consoleMenu.OnClose += Close;
+    public override void OnProtoReload(PrototypesReloadedEventArgs args)
+    {
+        base.OnProtoReload(args);
 
-        _consoleMenu.OpenCentered();
+        if (!args.WasModified<TechnologyPrototype>())
+            return;
+
+        if (State is not ResearchConsoleBoundInterfaceState rState)
+            return;
+
+        _consoleMenu?.UpdatePanels(rState);
+        _consoleMenu?.UpdateInformationPanel(rState);
     }
 
     protected override void UpdateState(BoundUserInterfaceState state)
@@ -47,13 +58,5 @@ public sealed class ResearchConsoleBoundUserInterface : BoundUserInterface
             return;
         _consoleMenu?.UpdatePanels(castState);
         _consoleMenu?.UpdateInformationPanel(castState);
-    }
-
-    protected override void Dispose(bool disposing)
-    {
-        base.Dispose(disposing);
-        if (!disposing)
-            return;
-        _consoleMenu?.Dispose();
     }
 }

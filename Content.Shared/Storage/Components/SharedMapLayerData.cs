@@ -13,25 +13,25 @@ namespace Content.Shared.Storage.Components
 
     [Serializable]
     [DataDefinition]
-    public sealed class SharedMapLayerData
+    public sealed partial class SharedMapLayerData
     {
         public string Layer = string.Empty;
 
-        [DataField("whitelist", required: true, serverOnly: true)]
-        public EntityWhitelist ServerWhitelist { get; set; } = new();
+        [DataField(required: true)]
+        public EntityWhitelist? Whitelist { get; set; }
 
         /// <summary>
         ///     Minimal amount of entities that are valid for whitelist.
         ///     If it's smaller than minimal amount, layer will be hidden.
         /// </summary>
-        [DataField("minCount")]
+        [DataField]
         public int MinCount = 1;
 
         /// <summary>
         ///     Max amount of entities that are valid for whitelist.
         ///     If it's bigger than max amount, layer will be hidden.
         /// </summary>
-        [DataField("maxCount")]
+        [DataField]
         public int MaxCount = int.MaxValue;
     }
 

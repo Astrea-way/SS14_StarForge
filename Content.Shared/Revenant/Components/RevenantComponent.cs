@@ -1,5 +1,8 @@
+using System.Numerics;
+using Content.Shared.Alert;
 using Content.Shared.FixedPoint;
 using Content.Shared.Store;
+using Content.Shared.Whitelist;
 using Robust.Shared.GameStates;
 using Robust.Shared.Prototypes;
 using Robust.Shared.Serialization.TypeSerializers.Implementations.Custom.Prototype;
@@ -7,13 +10,15 @@ using Robust.Shared.Serialization.TypeSerializers.Implementations.Custom.Prototy
 namespace Content.Shared.Revenant.Components;
 
 [RegisterComponent, NetworkedComponent]
-public sealed class RevenantComponent : Component
+[AutoGenerateComponentState]
+public sealed partial class RevenantComponent : Component
 {
     /// <summary>
     /// The total amount of Essence the revenant has. Functions
     /// as health and is regenerated.
     /// </summary>
-    [ViewVariables(VVAccess.ReadWrite)]
+    [DataField, ViewVariables(VVAccess.ReadWrite)]
+    [AutoNetworkedField]
     public FixedPoint2 Essence = 75;
 
     [DataField("stolenEssenceCurrencyPrototype", customTypeSerializer: typeof(PrototypeIdSerializer<CurrencyPrototype>))]
@@ -65,7 +70,7 @@ public sealed class RevenantComponent : Component
     /// the second corresponds to the amount of time the entity is made solid.
     /// </summary>
     [DataField("harvestDebuffs")]
-    public Vector2 HarvestDebuffs = (5, 5);
+    public Vector2 HarvestDebuffs = new(5, 5);
 
     /// <summary>
     /// The amount that is given to the revenant each time it's max essence is upgraded.
@@ -81,7 +86,7 @@ public sealed class RevenantComponent : Component
     /// The amount of essence that is needed to use the ability.
     /// </summary>
     [ViewVariables(VVAccess.ReadWrite), DataField("defileCost")]
-    public FixedPoint2 DefileCost = -30;
+    public FixedPoint2 DefileCost = 30;
 
     /// <summary>
     /// The status effects applied after the ability
@@ -89,7 +94,7 @@ public sealed class RevenantComponent : Component
     /// the second corresponds to the amount of time the entity is made solid.
     /// </summary>
     [DataField("defileDebuffs")]
-    public Vector2 DefileDebuffs = (1, 4);
+    public Vector2 DefileDebuffs = new(1, 4);
 
     /// <summary>
     /// The radius around the user that this ability affects
@@ -116,7 +121,7 @@ public sealed class RevenantComponent : Component
     /// The amount of essence that is needed to use the ability.
     /// </summary>
     [ViewVariables(VVAccess.ReadWrite), DataField("overloadCost")]
-    public FixedPoint2 OverloadCost = -40;
+    public FixedPoint2 OverloadCost = 40;
 
     /// <summary>
     /// The status effects applied after the ability
@@ -124,7 +129,7 @@ public sealed class RevenantComponent : Component
     /// the second corresponds to the amount of time the entity is made solid.
     /// </summary>
     [DataField("overloadDebuffs")]
-    public Vector2 OverloadDebuffs = (3, 8);
+    public Vector2 OverloadDebuffs = new(3, 8);
 
     /// <summary>
     /// The radius around the user that this ability affects
@@ -144,7 +149,7 @@ public sealed class RevenantComponent : Component
     /// The amount of essence that is needed to use the ability.
     /// </summary>
     [ViewVariables(VVAccess.ReadWrite), DataField("blightCost")]
-    public float BlightCost = -50;
+    public float BlightCost = 50;
 
     /// <summary>
     /// The status effects applied after the ability
@@ -152,7 +157,7 @@ public sealed class RevenantComponent : Component
     /// the second corresponds to the amount of time the entity is made solid.
     /// </summary>
     [DataField("blightDebuffs")]
-    public Vector2 BlightDebuffs = (2, 5);
+    public Vector2 BlightDebuffs = new(2, 5);
 
     /// <summary>
     /// The radius around the user that this ability affects
@@ -166,7 +171,7 @@ public sealed class RevenantComponent : Component
     /// The amount of essence that is needed to use the ability.
     /// </summary>
     [ViewVariables(VVAccess.ReadWrite), DataField("malfunctionCost")]
-    public FixedPoint2 MalfunctionCost = -60;
+    public FixedPoint2 MalfunctionCost = 60;
 
     /// <summary>
     /// The status effects applied after the ability
@@ -174,14 +179,30 @@ public sealed class RevenantComponent : Component
     /// the second corresponds to the amount of time the entity is made solid.
     /// </summary>
     [DataField("malfunctionDebuffs")]
-    public Vector2 MalfunctionDebuffs = (2, 8);
+    public Vector2 MalfunctionDebuffs = new(2, 8);
 
     /// <summary>
     /// The radius around the user that this ability affects
     /// </summary>
     [ViewVariables(VVAccess.ReadWrite), DataField("malfunctionRadius")]
     public float MalfunctionRadius = 3.5f;
+
+    /// <summary>
+    /// Whitelist for entities that can be emagged by malfunction.
+    /// Used to prevent ultra gamer things like ghost emagging chem or instantly launching the shuttle.
+    /// </summary>
+    [DataField]
+    public EntityWhitelist? MalfunctionWhitelist;
+
+    /// <summary>
+    /// Whitelist for entities that can never be emagged by malfunction.
+    /// </summary>
+    [DataField]
+    public EntityWhitelist? MalfunctionBlacklist;
     #endregion
+
+    [DataField]
+    public ProtoId<AlertPrototype> EssenceAlert = "Essence";
 
     #region Visualizer
     [DataField("state")]
@@ -193,4 +214,6 @@ public sealed class RevenantComponent : Component
     [DataField("harvestingState")]
     public string HarvestingState = "harvesting";
     #endregion
+
+    [DataField] public EntityUid? Action;
 }

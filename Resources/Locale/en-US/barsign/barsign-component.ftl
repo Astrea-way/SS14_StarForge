@@ -1,4 +1,6 @@
 barsign-component-name = bar sign
+barsign-ui-menu = Bar Sign Configuration
+barsign-ui-set-label = Set Sign:
 
 # Bar signs prototypes
 
@@ -92,7 +94,7 @@ barsign-prototype-description-emprah = Enjoyed by fanatics, heretics, and brain-
 
 ## Spacebucks
 barsign-prototype-name-spacebucks = Spacebucks
-barsign-prototype-description-spacebucks = You can't get away from them, even in space.
+barsign-prototype-description-spacebucks = You can't get away from them, even in space, and even after we started calling them 'spesos' instead.
 
 ## EmpBarSign
 barsign-prototype-description-empbarsign = Something has gone very wrong.

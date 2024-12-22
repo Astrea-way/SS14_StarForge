@@ -1,9 +1,10 @@
+using System.Numerics;
 using Content.Shared.Examine;
 using Content.Shared.Hands.Components;
 using Content.Shared.Hands.EntitySystems;
 using Content.Shared.Interaction;
-using Content.Shared.Item;
 using Content.Shared.Popups;
+using Content.Shared.Storage.EntitySystems;
 using JetBrains.Annotations;
 using Robust.Shared.GameStates;
 using Robust.Shared.Physics.Systems;
@@ -25,6 +26,7 @@ namespace Content.Shared.Stacks
         [Dependency] private readonly EntityLookupSystem _entityLookup = default!;
         [Dependency] private readonly SharedPhysicsSystem _physics = default!;
         [Dependency] protected readonly SharedPopupSystem Popup = default!;
+        [Dependency] private readonly SharedStorageSystem _storage = default!;
 
         public override void Initialize()
         {
@@ -56,6 +58,8 @@ namespace Content.Shared.Stacks
             if (!TryComp(args.Used, out StackComponent? recipientStack))
                 return;
 
+            var localRotation = Transform(args.Used).LocalRotation;
+
             if (!TryMergeStacks(uid, args.Used, out var transfered, stack, recipientStack))
                 return;
 
@@ -67,10 +71,11 @@ namespace Content.Shared.Stacks
                 return;
 
             var popupPos = args.ClickLocation;
+            var userCoords = Transform(args.User).Coordinates;
 
             if (!popupPos.IsValid(EntityManager))
             {
-                popupPos = Transform(args.User).Coordinates;
+                popupPos = userCoords;
             }
 
             switch (transfered)
@@ -90,16 +95,18 @@ namespace Content.Shared.Stacks
                     Popup.PopupCoordinates(Loc.GetString("comp-stack-already-full"), popupPos, Filter.Local(), false);
                     break;
             }
+
+            _storage.PlayPickupAnimation(args.Used, popupPos, userCoords, localRotation, args.User);
         }
 
         private bool TryMergeStacks(
             EntityUid donor,
             EntityUid recipient,
-            out int transfered,
+            out int transferred,
             StackComponent? donorStack = null,
             StackComponent? recipientStack = null)
         {
-            transfered = 0;
+            transferred = 0;
             if (donor == recipient)
                 return false;
 
@@ -109,10 +116,10 @@ namespace Content.Shared.Stacks
             if (string.IsNullOrEmpty(recipientStack.StackTypeId) || !recipientStack.StackTypeId.Equals(donorStack.StackTypeId))
                 return false;
 
-            transfered = Math.Min(donorStack.Count, GetAvailableSpace(recipientStack));
-            SetCount(donor, donorStack.Count - transfered, donorStack);
-            SetCount(recipient, recipientStack.Count + transfered, recipientStack);
-            return true;
+            transferred = Math.Min(donorStack.Count, GetAvailableSpace(recipientStack));
+            SetCount(donor, donorStack.Count - transferred, donorStack);
+            SetCount(recipient, recipientStack.Count + transferred, recipientStack);
+            return transferred > 0;
         }
 
         /// <summary>
@@ -166,8 +173,9 @@ namespace Content.Shared.Stacks
             amount = Math.Min(amount, GetMaxCount(component));
             amount = Math.Max(amount, 0);
 
+            // Server-side override deletes the entity if count == 0
             component.Count = amount;
-            Dirty(component);
+            Dirty(uid, component);
 
             Appearance.SetData(uid, StackVisuals.Actual, component.Count);
             RaiseLocalEvent(uid, new StackCountChangedEvent(old, component.Count));
@@ -208,13 +216,16 @@ namespace Content.Shared.Stacks
 
             var map = xform.MapID;
             var bounds = _physics.GetWorldAABB(uid);
-            var intersecting = _entityLookup.GetComponentsIntersecting<StackComponent>(map, bounds,
-                LookupFlags.Dynamic | LookupFlags.Sundries);
+            var intersecting = new HashSet<Entity<StackComponent>>();
+            _entityLookup.GetEntitiesIntersecting(map, bounds, intersecting, LookupFlags.Dynamic | LookupFlags.Sundries);
 
             var merged = false;
             foreach (var otherStack in intersecting)
             {
                 var otherEnt = otherStack.Owner;
+                // if you merge a ton of stacks together, you will end up deleting a few by accident.
+                if (TerminatingOrDeleted(otherEnt) || EntityManager.IsQueuedForDeletion(otherEnt))
+                    continue;
 
                 if (!TryMergeStacks(uid, otherEnt, out _, stack, otherStack))
                     continue;
@@ -224,6 +235,17 @@ namespace Content.Shared.Stacks
                     break;
             }
             return merged;
+        }
+
+        /// <summary>
+        /// Gets the amount of items in a stack. If it cannot be stacked, returns 1.
+        /// </summary>
+        /// <param name="uid"></param>
+        /// <param name="component"></param>
+        /// <returns></returns>
+        public int GetCount(EntityUid uid, StackComponent? component = null)
+        {
+            return Resolve(uid, ref component, false) ? component.Count : 1;
         }
 
         /// <summary>
@@ -310,6 +332,9 @@ namespace Content.Shared.Stacks
             if (!Resolve(insertEnt, ref insertStack) || !Resolve(targetEnt, ref targetStack))
                 return false;
 
+            if (insertStack.StackTypeId != targetStack.StackTypeId)
+                return false;
+
             var available = GetAvailableSpace(targetStack);
 
             if (available <= 0)
@@ -324,6 +349,10 @@ namespace Content.Shared.Stacks
 
         private void OnStackStarted(EntityUid uid, StackComponent component, ComponentStartup args)
         {
+            // on client, lingering stacks that start at 0 need to be darkened
+            // on server this does nothing
+            SetCount(uid, component.Count, component);
+
             if (!TryComp(uid, out AppearanceComponent? appearance))
                 return;
 
@@ -334,7 +363,7 @@ namespace Content.Shared.Stacks
 
         private void OnStackGetState(EntityUid uid, StackComponent component, ref ComponentGetState args)
         {
-            args.State = new StackComponentState(component.Count, GetMaxCount(component));
+            args.State = new StackComponentState(component.Count, component.MaxCountOverride, component.Lingering);
         }
 
         private void OnStackHandleState(EntityUid uid, StackComponent component, ref ComponentHandleState args)
@@ -343,6 +372,7 @@ namespace Content.Shared.Stacks
                 return;
 
             component.MaxCountOverride = cast.MaxCount;
+            component.Lingering = cast.Lingering;
             // This will change the count and call events.
             SetCount(uid, cast.Count, component);
         }

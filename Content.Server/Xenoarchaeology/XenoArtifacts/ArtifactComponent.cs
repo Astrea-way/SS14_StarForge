@@ -1,11 +1,12 @@
 using Content.Shared.Xenoarchaeology.XenoArtifacts;
+using Robust.Shared.Audio;
 using Robust.Shared.Serialization.TypeSerializers.Implementations.Custom;
 using Robust.Shared.Serialization.TypeSerializers.Implementations.Custom.Prototype;
 
 namespace Content.Server.Xenoarchaeology.XenoArtifacts;
 
 [RegisterComponent, Access(typeof(ArtifactSystem))]
-public sealed class ArtifactComponent : Component
+public sealed partial class ArtifactComponent : Component
 {
     /// <summary>
     /// Every node contained in the tree
@@ -63,7 +64,7 @@ public sealed class ArtifactComponent : Component
     /// The base amount of research points for each artifact node.
     /// </summary>
     [DataField("pointsPerNode"), ViewVariables(VVAccess.ReadWrite)]
-    public int PointsPerNode = 5000;
+    public int PointsPerNode = 6500;
 
     /// <summary>
     /// Research points which have been "consumed" from the theoretical max value of the artifact.
@@ -77,13 +78,28 @@ public sealed class ArtifactComponent : Component
     /// </summary>
     [DataField("pointDangerMultiplier"), ViewVariables(VVAccess.ReadWrite)]
     public float PointDangerMultiplier = 1.35f;
+
+    /// <summary>
+    /// The sound that plays when an artifact is activated
+    /// </summary>
+    [DataField("activationSound")]
+    public SoundSpecifier ActivationSound = new SoundCollectionSpecifier("ArtifactActivation")
+    {
+        Params = new()
+        {
+            Variation = 0.1f,
+            Volume = 3f
+        }
+    };
+
+    [DataField("activateActionEntity")] public EntityUid? ActivateActionEntity;
 }
 
 /// <summary>
 /// A single "node" of an artifact that contains various data about it.
 /// </summary>
 [DataDefinition]
-public sealed class ArtifactNode : ICloneable
+public sealed partial class ArtifactNode : ICloneable
 {
     /// <summary>
     /// A numeric id corresponding to each node.

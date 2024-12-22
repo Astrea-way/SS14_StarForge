@@ -7,7 +7,7 @@ namespace Content.Shared.Prayer;
 /// Allows an entity to be prayed on in the context menu
 /// </summary>
 [RegisterComponent, NetworkedComponent]
-public sealed class PrayableComponent : Component
+public sealed partial class PrayableComponent : Component
 {
     /// <summary>
     /// If bible users are only allowed to use this prayable entity
@@ -26,7 +26,7 @@ public sealed class PrayableComponent : Component
     /// <summary>
     /// Prefix used in the notification to admins
     /// </summary>
-    [DataField("notifiactionPrefix")]
+    [DataField("notificationPrefix")]
     [ViewVariables(VVAccess.ReadWrite)]
     public string NotificationPrefix = "prayer-chat-notify-pray";
 

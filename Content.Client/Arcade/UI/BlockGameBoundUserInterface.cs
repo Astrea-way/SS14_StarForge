@@ -1,5 +1,6 @@
 ﻿using Content.Shared.Arcade;
 using Robust.Client.GameObjects;
+using Robust.Client.UserInterface;
 
 namespace Content.Client.Arcade.UI;
 
@@ -7,7 +8,7 @@ public sealed class BlockGameBoundUserInterface : BoundUserInterface
 {
     private BlockGameMenu? _menu;
 
-    public BlockGameBoundUserInterface(ClientUserInterfaceComponent owner, Enum uiKey) : base(owner, uiKey)
+    public BlockGameBoundUserInterface(EntityUid owner, Enum uiKey) : base(owner, uiKey)
     {
     }
 
@@ -15,9 +16,8 @@ public sealed class BlockGameBoundUserInterface : BoundUserInterface
     {
         base.Open();
 
-        _menu = new BlockGameMenu(this);
-        _menu.OnClose += Close;
-        _menu.OpenCentered();
+        _menu = this.CreateWindow<BlockGameMenu>();
+        _menu.OnAction += SendAction;
     }
 
     protected override void ReceiveMessage(BoundUserInterfaceMessage message)

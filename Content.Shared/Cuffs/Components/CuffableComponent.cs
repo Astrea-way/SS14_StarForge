@@ -1,5 +1,8 @@
+using Content.Shared.Alert;
+using Content.Shared.Damage;
 using Robust.Shared.Containers;
 using Robust.Shared.GameStates;
+using Robust.Shared.Prototypes;
 using Robust.Shared.Serialization;
 using Robust.Shared.Utility;
 
@@ -7,7 +10,7 @@ namespace Content.Shared.Cuffs.Components;
 
 [RegisterComponent, NetworkedComponent]
 [Access(typeof(SharedCuffableSystem))]
-public sealed class CuffableComponent : Component
+public sealed partial class CuffableComponent : Component
 {
     /// <summary>
     /// The current RSI for the handcuff layer
@@ -38,7 +41,12 @@ public sealed class CuffableComponent : Component
     /// </summary>
     [DataField("canStillInteract"), ViewVariables(VVAccess.ReadWrite)]
     public bool CanStillInteract = true;
+
+    [DataField]
+    public ProtoId<AlertPrototype> CuffedAlert = "Handcuffed";
 }
+
+public sealed partial class RemoveCuffsAlertEvent : BaseAlertEvent;
 
 [Serializable, NetSerializable]
 public sealed class CuffableComponentState : ComponentState

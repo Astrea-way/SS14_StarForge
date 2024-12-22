@@ -1,11 +1,12 @@
 using Content.Server.Atmos;
 using Content.Server.Disposal.Tube.Components;
+using Content.Shared.Atmos;
 using Robust.Shared.Containers;
 
 namespace Content.Server.Disposal.Unit.Components
 {
     [RegisterComponent]
-    public sealed class DisposalHolderComponent : Component, IGasMixtureHolder
+    public sealed partial class DisposalHolderComponent : Component, IGasMixtureHolder
     {
         public Container Container = null!;
 

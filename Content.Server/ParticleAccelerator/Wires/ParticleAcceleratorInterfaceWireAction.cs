@@ -1,11 +1,12 @@
 using Content.Server.ParticleAccelerator.Components;
+using Content.Server.ParticleAccelerator.EntitySystems;
 using Content.Server.Wires;
 using Content.Shared.Singularity.Components;
 using Content.Shared.Wires;
 
 namespace Content.Server.ParticleAccelerator.Wires;
 
-public sealed class ParticleAcceleratorKeyboardWireAction : ComponentWireAction<ParticleAcceleratorControlBoxComponent>
+public sealed partial class ParticleAcceleratorKeyboardWireAction : ComponentWireAction<ParticleAcceleratorControlBoxComponent>
 {
     public override string Name { get; set; } = "wire-name-pa-keyboard";
     public override Color Color { get; set; } = Color.LimeGreen;
@@ -19,12 +20,16 @@ public sealed class ParticleAcceleratorKeyboardWireAction : ComponentWireAction<
     public override bool Cut(EntityUid user, Wire wire, ParticleAcceleratorControlBoxComponent controller)
     {
         controller.InterfaceDisabled = true;
+        var paSystem = EntityManager.System<ParticleAcceleratorSystem>();
+        paSystem.UpdateUI(wire.Owner, controller);
         return true;
     }
 
     public override bool Mend(EntityUid user, Wire wire, ParticleAcceleratorControlBoxComponent controller)
     {
         controller.InterfaceDisabled = false;
+        var paSystem = EntityManager.System<ParticleAcceleratorSystem>();
+        paSystem.UpdateUI(wire.Owner, controller);
         return true;
     }
 

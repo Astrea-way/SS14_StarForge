@@ -14,30 +14,31 @@ using Content.Server.Info;
 using Content.Server.IoC;
 using Content.Server.Maps;
 using Content.Server.NodeContainer.NodeGroups;
+using Content.Server.Objectives;
+using Content.Server.Players;
+using Content.Server.Players.JobWhitelist;
 using Content.Server.Players.PlayTimeTracking;
+using Content.Server.Players.RateLimiting;
 using Content.Server.Preferences.Managers;
 using Content.Server.ServerInfo;
 using Content.Server.ServerUpdates;
 using Content.Server.Voting.Managers;
-using Content.Shared.Administration;
 using Content.Shared.CCVar;
 using Content.Shared.Kitchen;
+using Content.Shared.Localizations;
 using Robust.Server;
-using Robust.Server.Bql;
-using Robust.Shared.Configuration;
 using Robust.Server.ServerStatus;
+using Robust.Shared.Configuration;
 using Robust.Shared.ContentPack;
 using Robust.Shared.Prototypes;
 using Robust.Shared.Timing;
 using Robust.Shared.Utility;
-using Content.Server.Station.Systems;
-using Content.Shared.Localizations;
 
 namespace Content.Server.Entry
 {
     public sealed class EntryPoint : GameServer
     {
-        private const string ConfigPresetsDir = "/ConfigPresets/";
+        internal const string ConfigPresetsDir = "/ConfigPresets/";
         private const string ConfigPresetsDirBuild = $"{ConfigPresetsDir}Build/";
 
         private EuiManager _euiManager = default!;
@@ -67,13 +68,9 @@ namespace Content.Server.Entry
             factory.DoAutoRegistrations();
             factory.IgnoreMissingComponents("Visuals");
 
-            foreach (var ignoreName in IgnoredComponents.List)
-            {
-                factory.RegisterIgnore(ignoreName);
-            }
+            factory.RegisterIgnore(IgnoredComponents.List);
 
             prototypes.RegisterIgnore("parallax");
-            prototypes.RegisterIgnore("guideEntry");
 
             ServerContentIoC.Register();
 
@@ -108,10 +105,13 @@ namespace Content.Server.Entry
                 IoCManager.Resolve<ContentNetworkResourceManager>().Initialize();
                 IoCManager.Resolve<GhostKickManager>().Initialize();
                 IoCManager.Resolve<ServerInfoManager>().Initialize();
+                IoCManager.Resolve<ServerApi>().Initialize();
 
                 _voteManager.Initialize();
                 _updateManager.Initialize();
                 _playTimeTracking.Initialize();
+                IoCManager.Resolve<JobWhitelistManager>().Initialize();
+                IoCManager.Resolve<PlayerRateLimitManager>().Initialize();
             }
         }
 
@@ -145,8 +145,8 @@ namespace Content.Server.Entry
 
                 IoCManager.Resolve<IGameMapManager>().Initialize();
                 IoCManager.Resolve<IEntitySystemManager>().GetEntitySystem<GameTicker>().PostInitialize();
-                IoCManager.Resolve<IBqlQueryManager>().DoAutoRegistrations();
-                IoCManager.Resolve<RoleBanManager>().Initialize();
+                IoCManager.Resolve<IBanManager>().Initialize();
+                IoCManager.Resolve<IConnectionManager>().PostInit();
             }
         }
 
@@ -174,6 +174,7 @@ namespace Content.Server.Entry
         {
             _playTimeTracking?.Shutdown();
             _dbManager?.Shutdown();
+            IoCManager.Resolve<ServerApi>().Shutdown();
         }
 
         private static void LoadConfigPresets(IConfigurationManager cfg, IResourceManager res, ISawmill sawmill)

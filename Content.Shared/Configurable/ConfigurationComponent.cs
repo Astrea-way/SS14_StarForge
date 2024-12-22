@@ -1,5 +1,6 @@
 using System.Text.RegularExpressions;
 using Content.Shared.Tools;
+using Content.Shared.Tools.Systems;
 using Robust.Shared.GameStates;
 using Robust.Shared.Serialization;
 using Robust.Shared.Serialization.TypeSerializers.Implementations.Custom.Prototype;
@@ -7,16 +8,16 @@ using Robust.Shared.Serialization.TypeSerializers.Implementations.Custom.Prototy
 namespace Content.Shared.Configurable
 {
     [RegisterComponent, NetworkedComponent]
-    public sealed class ConfigurationComponent : Component
+    public sealed partial class ConfigurationComponent : Component
     {
         [DataField("config")]
-        public readonly Dictionary<string, string?> Config = new();
+        public Dictionary<string, string?> Config = new();
 
         [DataField("qualityNeeded", customTypeSerializer: typeof(PrototypeIdSerializer<ToolQualityPrototype>))]
-        public string QualityNeeded = "Pulsing";
+        public string QualityNeeded = SharedToolSystem.PulseQuality;
 
         [DataField("validation")]
-        public readonly Regex Validation = new("^[a-zA-Z0-9 ]*$", RegexOptions.Compiled);
+        public Regex Validation = new("^[a-zA-Z0-9 ]*$", RegexOptions.Compiled);
 
         [Serializable, NetSerializable]
         public sealed class ConfigurationBoundUserInterfaceState : BoundUserInterfaceState

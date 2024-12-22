@@ -1,4 +1,5 @@
 ﻿using System.Globalization;
+using Content.Shared.Atmos;
 using Robust.Shared.Serialization;
 using Robust.Shared.Serialization.Manager;
 using Robust.Shared.Serialization.Markdown;
@@ -11,7 +12,7 @@ using Robust.Shared.Utility;
 
 namespace Content.Server.Atmos.Serialization;
 
-public sealed class TileAtmosCollectionSerializer : ITypeSerializer<Dictionary<Vector2i, TileAtmosphere>, MappingDataNode>, ITypeCopier<Dictionary<Vector2i, TileAtmosphere>>
+public sealed partial class TileAtmosCollectionSerializer : ITypeSerializer<Dictionary<Vector2i, TileAtmosphere>, MappingDataNode>, ITypeCopier<Dictionary<Vector2i, TileAtmosphere>>
 {
     public ValidationNode Validate(ISerializationManager serializationManager, MappingDataNode node,
         IDependencyCollection dependencies, ISerializationContext? context = null)
@@ -26,7 +27,7 @@ public sealed class TileAtmosCollectionSerializer : ITypeSerializer<Dictionary<V
     {
         node.TryGetValue(new ValueDataNode("version"), out var versionNode);
         var version = ((ValueDataNode?) versionNode)?.AsInt() ?? 1;
-        Dictionary<Vector2i, TileAtmosphere> tiles;
+        Dictionary<Vector2i, TileAtmosphere> tiles = new();
 
         // Backwards compatability
         if (version == 1)
@@ -35,8 +36,6 @@ public sealed class TileAtmosCollectionSerializer : ITypeSerializer<Dictionary<V
 
             var mixies = serializationManager.Read<Dictionary<Vector2i, int>?>(tile2, hookCtx, context);
             var unique = serializationManager.Read<List<GasMixture>?>(node["uniqueMixes"], hookCtx, context);
-
-            tiles = new Dictionary<Vector2i, TileAtmosphere>();
 
             if (unique != null && mixies != null)
             {
@@ -58,15 +57,14 @@ public sealed class TileAtmosCollectionSerializer : ITypeSerializer<Dictionary<V
         else
         {
             var dataNode = (MappingDataNode) node["data"];
-            var tileNode = (MappingDataNode) dataNode["tiles"];
             var chunkSize = serializationManager.Read<int>(dataNode["chunkSize"], hookCtx, context);
 
-            var unique = serializationManager.Read<List<GasMixture>?>(dataNode["uniqueMixes"], hookCtx, context);
-
-            tiles = new Dictionary<Vector2i, TileAtmosphere>();
+            dataNode.TryGetValue(new ValueDataNode("uniqueMixes"), out var mixNode);
+            var unique = mixNode == null ? null : serializationManager.Read<List<GasMixture>?>(mixNode, hookCtx, context);
 
             if (unique != null)
             {
+                var tileNode = (MappingDataNode) dataNode["tiles"];
                 foreach (var (chunkNode, valueNode) in tileNode)
                 {
                     var chunkOrigin = serializationManager.Read<Vector2i>(chunkNode, hookCtx, context);
@@ -156,7 +154,7 @@ public sealed class TileAtmosCollectionSerializer : ITypeSerializer<Dictionary<V
     }
 
     [DataDefinition]
-    private struct TileAtmosData
+    private partial struct TileAtmosData
     {
         [DataField("chunkSize")] public int ChunkSize;
 
@@ -166,13 +164,13 @@ public sealed class TileAtmosCollectionSerializer : ITypeSerializer<Dictionary<V
     }
 
     [DataDefinition]
-    private record struct TileAtmosChunk()
+    private partial record struct TileAtmosChunk()
     {
         /// <summary>
         /// Key is unique mix and value is bitflag of the affected tiles.
         /// </summary>
         [IncludeDataField(customTypeSerializer: typeof(DictionarySerializer<int, uint>))]
-        public readonly Dictionary<int, uint> Data = new();
+        public Dictionary<int, uint> Data = new();
     }
 
     public void CopyTo(ISerializationManager serializationManager, Dictionary<Vector2i, TileAtmosphere> source, ref Dictionary<Vector2i, TileAtmosphere> target,
@@ -183,13 +181,7 @@ public sealed class TileAtmosCollectionSerializer : ITypeSerializer<Dictionary<V
         target.Clear();
         foreach (var (key, val) in source)
         {
-            target.Add(key,
-                new TileAtmosphere(
-                    val.GridIndex,
-                    val.GridIndices,
-                    val.Air?.Clone(),
-                    val.Air?.Immutable ?? false,
-                    val.Space));
+            target.Add(key, new TileAtmosphere(val));
         }
     }
 }

@@ -4,19 +4,21 @@ using Robust.Shared.Prototypes;
 namespace Content.Server.Spawners.Components;
 
 [RegisterComponent]
-public sealed class SpawnPointComponent : Component
+public sealed partial class SpawnPointComponent : Component, ISpawnPoint
 {
-    [Dependency] private readonly IPrototypeManager _prototypeManager = default!;
-
-    [ViewVariables(VVAccess.ReadWrite)]
     [DataField("job_id")]
-    private string? _jobId;
+    public ProtoId<JobPrototype>? Job;
 
-    [ViewVariables(VVAccess.ReadWrite)]
-    [DataField("spawn_type")]
-    public SpawnPointType SpawnType { get; } = SpawnPointType.Unset;
+    /// <summary>
+    /// The type of spawn point
+    /// </summary>
+    [DataField("spawn_type"), ViewVariables(VVAccess.ReadWrite)]
+    public SpawnPointType SpawnType { get; set; } = SpawnPointType.Unset;
 
-    public JobPrototype? Job => string.IsNullOrEmpty(_jobId) ? null : _prototypeManager.Index<JobPrototype>(_jobId);
+    public override string ToString()
+    {
+        return $"{Job} {SpawnType}";
+    }
 }
 
 public enum SpawnPointType

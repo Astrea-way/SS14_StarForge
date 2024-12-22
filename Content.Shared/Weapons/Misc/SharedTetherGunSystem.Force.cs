@@ -1,3 +1,4 @@
+using System.Numerics;
 using Content.Shared.Interaction;
 using Robust.Shared.Map;
 
@@ -13,6 +14,9 @@ public abstract partial class SharedTetherGunSystem
 
     private void OnForceActivate(EntityUid uid, ForceGunComponent component, ActivateInWorldEvent args)
     {
+        if (!args.Complex)
+            return;
+
         StopTether(uid, component);
     }
 

@@ -1,3 +1,4 @@
+using System.Numerics;
 using System.Threading;
 using Content.Server.NPC.Pathfinding;
 using Content.Shared.DoAfter;
@@ -10,8 +11,8 @@ namespace Content.Server.NPC.Components;
 /// <summary>
 /// Added to NPCs that are moving.
 /// </summary>
-[RegisterComponent]
-public sealed class NPCSteeringComponent : Component
+[RegisterComponent, AutoGenerateComponentPause]
+public sealed partial class NPCSteeringComponent : Component
 {
     #region Context Steering
 
@@ -27,11 +28,11 @@ public sealed class NPCSteeringComponent : Component
     [ViewVariables(VVAccess.ReadWrite)]
     public float Radius = 0.35f;
 
-    [ViewVariables]
-    public readonly float[] Interest = new float[SharedNPCSteeringSystem.InterestDirections];
+    [ViewVariables, DataField]
+    public float[] Interest = new float[SharedNPCSteeringSystem.InterestDirections];
 
-    [ViewVariables]
-    public readonly float[] Danger = new float[SharedNPCSteeringSystem.InterestDirections];
+    [ViewVariables, DataField]
+    public float[] Danger = new float[SharedNPCSteeringSystem.InterestDirections];
 
     // TODO: Update radius, also danger points debug only
     public readonly List<Vector2> DangerPoints = new();
@@ -39,15 +40,13 @@ public sealed class NPCSteeringComponent : Component
     #endregion
 
     /// <summary>
-    /// Next time we can change our steering direction.
+    /// Set to true from other systems if you wish to force the NPC to move closer.
     /// </summary>
-    [DataField("nextSteer", customTypeSerializer:typeof(TimeOffsetSerializer))]
-    public TimeSpan NextSteer = TimeSpan.Zero;
+    [DataField("forceMove")]
+    public bool ForceMove = false;
 
     [DataField("lastSteerDirection")]
     public Vector2 LastSteerDirection = Vector2.Zero;
-
-    public const int SteeringFrequency = 10;
 
     /// <summary>
     /// Last position we considered for being stuck.
@@ -56,6 +55,7 @@ public sealed class NPCSteeringComponent : Component
     public EntityCoordinates LastStuckCoordinates;
 
     [DataField("lastStuckTime", customTypeSerializer:typeof(TimeOffsetSerializer))]
+    [AutoPausedField]
     public TimeSpan LastStuckTime;
 
     public const float StuckDistance = 1f;
@@ -65,6 +65,22 @@ public sealed class NPCSteeringComponent : Component
     /// </summary>
     [ViewVariables]
     public bool Pathfind => PathfindToken != null;
+
+    /// <summary>
+    /// Are we considered arrived if we have line of sight of the target.
+    /// </summary>
+    [DataField("arriveOnLineOfSight")]
+    public bool ArriveOnLineOfSight = false;
+
+    /// <summary>
+    /// How long the target has been in line of sight if applicable.
+    /// </summary>
+    [DataField("lineOfSightTimer")]
+    public float LineOfSightTimer = 0f;
+
+    [DataField("lineOfSightTimeRequired")]
+    public float LineOfSightTimeRequired = 0.5f;
+
     [ViewVariables] public CancellationTokenSource? PathfindToken = null;
 
     /// <summary>

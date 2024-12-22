@@ -3,36 +3,31 @@ using Content.Shared.Mech;
 using Content.Shared.Mech.Components;
 using JetBrains.Annotations;
 using Robust.Client.GameObjects;
+using Robust.Client.UserInterface;
 
 namespace Content.Client.Mech.Ui;
 
 [UsedImplicitly]
 public sealed class MechBoundUserInterface : BoundUserInterface
 {
-    [Dependency] private readonly IEntityManager _ent = default!;
-
-    private readonly EntityUid _mech;
-
+    [ViewVariables]
     private MechMenu? _menu;
 
-    public MechBoundUserInterface(ClientUserInterfaceComponent owner, Enum uiKey) : base(owner, uiKey)
+    public MechBoundUserInterface(EntityUid owner, Enum uiKey) : base(owner, uiKey)
     {
-        IoCManager.InjectDependencies(this);
-        _mech = owner.Owner;
     }
 
     protected override void Open()
     {
         base.Open();
 
-        _menu = new(_mech);
-
-        _menu.OnClose += Close;
+        _menu = this.CreateWindow<MechMenu>();
+        _menu.SetEntity(Owner);
         _menu.OpenCenteredLeft();
 
         _menu.OnRemoveButtonPressed += uid =>
         {
-            SendMessage(new MechEquipmentRemoveMessage(uid));
+            SendMessage(new MechEquipmentRemoveMessage(EntMan.GetNetEntity(uid)));
         };
     }
 
@@ -49,7 +44,7 @@ public sealed class MechBoundUserInterface : BoundUserInterface
 
     public void UpdateEquipmentControls(MechBoundUiState state)
     {
-        if (!_ent.TryGetComponent<MechComponent>(_mech, out var mechComp))
+        if (!EntMan.TryGetComponent<MechComponent>(Owner, out var mechComp))
             return;
 
         foreach (var ent in mechComp.EquipmentContainer.ContainedEntities)
@@ -59,25 +54,15 @@ public sealed class MechBoundUserInterface : BoundUserInterface
                 continue;
             foreach (var (attached, estate) in state.EquipmentStates)
             {
-                if (ent == attached)
+                if (ent == EntMan.GetEntity(attached))
                     ui.UpdateState(estate);
             }
         }
     }
 
-    protected override void Dispose(bool disposing)
-    {
-        base.Dispose(disposing);
-
-        if (!disposing)
-            return;
-
-        _menu?.Close();
-    }
-
     public UIFragment? GetEquipmentUi(EntityUid? uid)
     {
-        var component = _ent.GetComponentOrNull<UIFragmentComponent>(uid);
+        var component = EntMan.GetComponentOrNull<UIFragmentComponent>(uid);
         component?.Ui?.Setup(this, uid);
         return component?.Ui;
     }

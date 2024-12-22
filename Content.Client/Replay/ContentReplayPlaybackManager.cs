@@ -5,13 +5,13 @@ using Content.Client.Replay.Spectator;
 using Content.Client.Replay.UI.Loading;
 using Content.Client.UserInterface.Systems.Chat;
 using Content.Shared.Chat;
+using Content.Shared.Effects;
 using Content.Shared.GameTicking;
 using Content.Shared.GameWindow;
 using Content.Shared.Hands;
 using Content.Shared.Instruments;
 using Content.Shared.Popups;
 using Content.Shared.Projectiles;
-using Content.Shared.Weapons.Melee;
 using Content.Shared.Weapons.Melee.Events;
 using Content.Shared.Weapons.Ranged.Events;
 using Content.Shared.Weapons.Ranged.Systems;
@@ -24,6 +24,8 @@ using Robust.Client.Replays.Playback;
 using Robust.Client.State;
 using Robust.Client.Timing;
 using Robust.Client.UserInterface;
+using Robust.Shared;
+using Robust.Shared.Configuration;
 using Robust.Shared.ContentPack;
 using Robust.Shared.Serialization.Markdown.Mapping;
 using Robust.Shared.Utility;
@@ -42,13 +44,25 @@ public sealed class ContentReplayPlaybackManager
     [Dependency] private readonly IClientConGroupController _conGrp = default!;
     [Dependency] private readonly IClientAdminManager _adminMan = default!;
     [Dependency] private readonly IPlayerManager _player = default!;
+    [Dependency] private readonly IBaseClient _client = default!;
+    [Dependency] private readonly IConfigurationManager _cfg = default!;
+    [Dependency] private readonly IResourceManager _resMan = default!;
 
     /// <summary>
     /// UI state to return to when stopping a replay or loading fails.
     /// </summary>
     public Type? DefaultState;
 
+    public bool IsScreenshotMode = false;
+
     private bool _initialized;
+
+    /// <summary>
+    /// Most recently loaded file, for re-attempting the load with error tolerance.
+    /// Required because the zip reader auto-disposes and I'm too lazy to change it so that
+    /// <see cref="ReplayFileReaderZip"/> can re-open it.
+    /// </summary>
+    public (ResPath? Zip, ResPath Folder)? LastLoad;
 
     public void Initialize()
     {
@@ -66,17 +80,50 @@ public sealed class ContentReplayPlaybackManager
     private void LoadOverride(IReplayFileReader fileReader)
     {
         var screen = _stateMan.RequestStateChange<LoadingScreen<bool>>();
-        screen.Job = new ContentLoadReplayJob(1/60f, fileReader, _loadMan, screen);
+        screen.Job = new ContentLoadReplayJob(1 / 60f, fileReader, _loadMan, screen);
         screen.OnJobFinished += (_, e) => OnFinishedLoading(e);
     }
 
     private void OnFinishedLoading(Exception? exception)
     {
-        if (exception != null)
+        if (exception == null)
         {
-            ReturnToDefaultState();
-            _uiMan.Popup(Loc.GetString("replay-loading-failed", ("reason", exception)));
+            LastLoad = null;
+            return;
         }
+
+        if (_client.RunLevel == ClientRunLevel.SinglePlayerGame)
+            _client.StopSinglePlayer();
+
+        Action? retryAction = null;
+        Action? cancelAction = null;
+
+        if (!_cfg.GetCVar(CVars.ReplayIgnoreErrors) && LastLoad is { } last)
+        {
+            retryAction = () =>
+            {
+                _cfg.SetCVar(CVars.ReplayIgnoreErrors, true);
+
+                IReplayFileReader reader = last.Zip == null
+                    ? new ReplayFileReaderResources(_resMan, last.Folder)
+                    : new ReplayFileReaderZip(new(_resMan.UserData.OpenRead(last.Zip.Value)), last.Folder);
+
+                _loadMan.LoadAndStartReplay(reader);
+            };
+        }
+
+        // If we have an explicit menu to get back to (e.g. replay browser UI), show a cancel button.
+        if (DefaultState != null)
+        {
+            cancelAction = () =>
+            {
+                _stateMan.RequestStateChange(DefaultState);
+            };
+        }
+
+        // Switch to a new game state to present the error and cancel/retry options.
+        var state = _stateMan.RequestStateChange<ReplayLoadingFailed>();
+        state.SetData(exception, cancelAction, retryAction);
     }
 
     public void ReturnToDefaultState()
@@ -87,6 +134,9 @@ public sealed class ContentReplayPlaybackManager
             _stateMan.RequestStateChange<LauncherConnecting>().SetDisconnected();
         else
             _stateMan.RequestStateChange<MainScreen>();
+
+        if (_client.RunLevel == ClientRunLevel.SinglePlayerGame)
+            _client.StopSinglePlayer();
     }
 
     private void OnCheckpointReset()
@@ -117,8 +167,11 @@ public sealed class ContentReplayPlaybackManager
                 // Mark as handled -- the event won't get raised.
                 return true;
             case TickerJoinGameEvent:
-                if (!_entMan.EntityExists(_player.LocalPlayer?.ControlledEntity))
+                if (!_entMan.EntityExists(_player.LocalEntity))
                     _entMan.System<ReplaySpectatorSystem>().SetSpectatorPosition(default);
+                return true;
+            case ChatMessage chat:
+                _uiMan.GetUIController<ChatUIController>().ProcessChatMessage(chat, speechBubble: !skipEffects);
                 return true;
         }
 
@@ -130,19 +183,14 @@ public sealed class ContentReplayPlaybackManager
 
         switch (message)
         {
-            case ChatMessage chat:
-                // Pass the chat message to the UI controller, skip the speech-bubble / pop-up.
-                _uiMan.GetUIController<ChatUIController>().ProcessChatMessage(chat, speechBubble: false);
-                return true;
             case RoundEndMessageEvent:
             case PopupEvent:
-            case AudioMessage:
             case PickupAnimationEvent:
             case MeleeLungeEvent:
             case SharedGunSystem.HitscanEvent:
             case ImpactEffectEvent:
             case MuzzleFlashEvent:
-            case DamageEffectEvent:
+            case ColorFlashEffectEvent:
             case InstrumentStartMidiEvent:
             case InstrumentMidiEventEvent:
             case InstrumentStopMidiEvent:
@@ -160,7 +208,7 @@ public sealed class ContentReplayPlaybackManager
 
     private void OnReplayPlaybackStopped()
     {
-        _conGrp.Implementation = (IClientConGroupImplementation)_adminMan;
+        _conGrp.Implementation = (IClientConGroupImplementation) _adminMan;
         ReturnToDefaultState();
     }
 }

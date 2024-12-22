@@ -6,8 +6,8 @@ namespace Content.Server.PowerSink
     /// <summary>
     /// Absorbs power up to its capacity when anchored then explodes.
     /// </summary>
-    [RegisterComponent]
-    public sealed class PowerSinkComponent : Component
+    [RegisterComponent, AutoGenerateComponentPause]
+    public sealed partial class PowerSinkComponent : Component
     {
         /// <summary>
         /// When the power sink is nearing its explosion, warn the crew so they can look for it
@@ -21,6 +21,7 @@ namespace Content.Server.PowerSink
         /// If explosion has been triggered, time at which to explode.
         /// </summary>
         [DataField("explosionTime", customTypeSerializer:typeof(TimeOffsetSerializer))]
+        [AutoPausedField]
         public System.TimeSpan? ExplosionTime = null;
 
         /// <summary>

@@ -1,4 +1,5 @@
-using Robust.Shared.Serialization.TypeSerializers.Implementations.Custom.Prototype.List;
+using Content.Shared.Guidebook;
+using Robust.Shared.Prototypes;
 
 namespace Content.Client.Guidebook.Components;
 
@@ -7,15 +8,14 @@ namespace Content.Client.Guidebook.Components;
 /// </summary>
 [RegisterComponent]
 [Access(typeof(GuidebookSystem))]
-public sealed class GuideHelpComponent : Component
+public sealed partial class GuideHelpComponent : Component
 {
     /// <summary>
     /// What guides to include show when opening the guidebook. The first entry will be used to select the currently
     /// selected guidebook.
     /// </summary>
-    [DataField("guides", customTypeSerializer: typeof(PrototypeIdListSerializer<GuideEntryPrototype>), required: true)]
-    [ViewVariables]
-    public List<string> Guides = new();
+    [DataField(required: true)]
+    public List<ProtoId<GuideEntryPrototype>> Guides = new();
 
     /// <summary>
     /// Whether or not to automatically include the children of the given guides.

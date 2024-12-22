@@ -1,4 +1,5 @@
 using Content.Shared.Cargo;
+using Robust.Shared.Serialization.TypeSerializers.Implementations.Custom;
 
 namespace Content.Server.Cargo.Components;
 
@@ -6,42 +7,42 @@ namespace Content.Server.Cargo.Components;
 /// Stores all active cargo bounties for a particular station.
 /// </summary>
 [RegisterComponent]
-public sealed class StationCargoBountyDatabaseComponent : Component
+public sealed partial class StationCargoBountyDatabaseComponent : Component
 {
     /// <summary>
     /// Maximum amount of bounties a station can have.
     /// </summary>
-    [DataField("maxBounties"), ViewVariables(VVAccess.ReadWrite)]
-    public int MaxBounties = 3;
+    [DataField, ViewVariables(VVAccess.ReadWrite)]
+    public int MaxBounties = 6;
 
     /// <summary>
     /// A list of all the bounties currently active for a station.
     /// </summary>
-    [DataField("bounties"), ViewVariables(VVAccess.ReadWrite)]
+    [DataField, ViewVariables(VVAccess.ReadWrite)]
     public List<CargoBountyData> Bounties = new();
 
     /// <summary>
     /// Used to determine unique order IDs
     /// </summary>
-    [DataField("totalBounties")]
+    [DataField]
     public int TotalBounties;
 
     /// <summary>
-    /// A poor-man's weighted list of the durations for how long
-    /// each bounty will last.
+    /// A list of bounty IDs that have been checked this tick.
+    /// Used to prevent multiplying bounty prices.
     /// </summary>
-    [DataField("bountyDurations")]
-    public List<TimeSpan> BountyDurations = new()
-    {
-        TimeSpan.FromMinutes(5),
-        TimeSpan.FromMinutes(7.5f),
-        TimeSpan.FromMinutes(7.5f),
-        TimeSpan.FromMinutes(7.5f),
-        TimeSpan.FromMinutes(10),
-        TimeSpan.FromMinutes(10),
-        TimeSpan.FromMinutes(10),
-        TimeSpan.FromMinutes(10),
-        TimeSpan.FromMinutes(10),
-        TimeSpan.FromMinutes(15)
-    };
+    [DataField]
+    public HashSet<string> CheckedBounties = new();
+
+    /// <summary>
+    /// The time at which players will be able to skip the next bounty.
+    /// </summary>
+    [DataField(customTypeSerializer: typeof(TimeOffsetSerializer))]
+    public TimeSpan NextSkipTime = TimeSpan.Zero;
+
+    /// <summary>
+    /// The time between skipping bounties.
+    /// </summary>
+    [DataField]
+    public TimeSpan SkipDelay = TimeSpan.FromMinutes(15);
 }

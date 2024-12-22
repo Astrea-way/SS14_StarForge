@@ -1,6 +1,4 @@
-using System.Threading.Tasks;
 using Content.IntegrationTests.Tests.Interaction;
-using NUnit.Framework;
 
 namespace Content.IntegrationTests.Tests.Construction.Interaction;
 
@@ -18,8 +16,8 @@ public sealed class ComputerConstruction : InteractionTest
         await StartConstruction(Computer);
 
         // Initial interaction (ghost turns into real entity)
-        await Interact(Steel, 5);
-        AssertPrototype(ComputerFrame);
+        await InteractUsing(Steel, 5);
+        ClientAssertPrototype(ComputerFrame, Target);
 
         // Perform construction steps
         await Interact(
@@ -31,7 +29,7 @@ public sealed class ComputerConstruction : InteractionTest
             Screw);
 
         // Construction finished, target entity was replaced with a new one:
-        AssertPrototype(ComputerId);
+        AssertPrototype(ComputerId, Target);
     }
 
     [Test]
@@ -41,7 +39,7 @@ public sealed class ComputerConstruction : InteractionTest
         await StartDeconstruction(ComputerId);
 
         // Initial interaction turns id computer into generic computer
-        await Interact(Screw);
+        await InteractUsing(Pry);
         AssertPrototype(ComputerFrame);
 
         // Perform deconstruction steps
@@ -51,7 +49,7 @@ public sealed class ComputerConstruction : InteractionTest
             Screw,
             Pry,
             Wrench,
-            Weld);
+            Screw);
 
         // construction finished, entity no longer exists.
         AssertDeleted();
@@ -71,7 +69,7 @@ public sealed class ComputerConstruction : InteractionTest
         await SpawnTarget(ComputerId);
 
         // Initial interaction turns id computer into generic computer
-        await Interact(Screw);
+        await InteractUsing(Pry);
         AssertPrototype(ComputerFrame);
 
         // Perform partial deconstruction steps

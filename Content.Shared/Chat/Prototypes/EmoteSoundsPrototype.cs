@@ -1,5 +1,6 @@
 using Robust.Shared.Audio;
 using Robust.Shared.Prototypes;
+using Robust.Shared.Serialization;
 using Robust.Shared.Serialization.TypeSerializers.Implementations.Custom.Prototype.Dictionary;
 
 namespace Content.Shared.Chat.Prototypes;
@@ -8,11 +9,11 @@ namespace Content.Shared.Chat.Prototypes;
 ///     Sounds collection for each <see cref="EmotePrototype"/>.
 ///     Different entities may use different sounds collections.
 /// </summary>
-[Prototype("emoteSounds")]
+[Prototype("emoteSounds"), Serializable, NetSerializable]
 public sealed class EmoteSoundsPrototype : IPrototype
 {
     [IdDataField]
-    public string ID { get; } = default!;
+    public string ID { get; private set; } = default!;
 
     /// <summary>
     ///     Optional fallback sound that will play if collection

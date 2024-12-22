@@ -1,12 +1,11 @@
 using Content.Server.Power.Components;
 using Content.Shared.Damage;
+using Content.Shared.Damage.Events;
 using Content.Shared.FixedPoint;
 using Content.Shared.Projectiles;
-using Content.Shared.Verbs;
 using Content.Shared.Weapons.Ranged;
 using Content.Shared.Weapons.Ranged.Components;
 using Robust.Shared.Prototypes;
-using Robust.Shared.Utility;
 
 namespace Content.Server.Weapons.Ranged.Systems;
 
@@ -19,12 +18,12 @@ public sealed partial class GunSystem
         // Hitscan
         SubscribeLocalEvent<HitscanBatteryAmmoProviderComponent, ComponentStartup>(OnBatteryStartup);
         SubscribeLocalEvent<HitscanBatteryAmmoProviderComponent, ChargeChangedEvent>(OnBatteryChargeChange);
-        SubscribeLocalEvent<HitscanBatteryAmmoProviderComponent, GetVerbsEvent<ExamineVerb>>(OnBatteryExaminableVerb);
+        SubscribeLocalEvent<HitscanBatteryAmmoProviderComponent, DamageExamineEvent>(OnBatteryDamageExamine);
 
         // Projectile
         SubscribeLocalEvent<ProjectileBatteryAmmoProviderComponent, ComponentStartup>(OnBatteryStartup);
         SubscribeLocalEvent<ProjectileBatteryAmmoProviderComponent, ChargeChangedEvent>(OnBatteryChargeChange);
-        SubscribeLocalEvent<ProjectileBatteryAmmoProviderComponent, GetVerbsEvent<ExamineVerb>>(OnBatteryExaminableVerb);
+        SubscribeLocalEvent<ProjectileBatteryAmmoProviderComponent, DamageExamineEvent>(OnBatteryDamageExamine);
     }
 
     private void OnBatteryStartup(EntityUid uid, BatteryAmmoProviderComponent component, ComponentStartup args)
@@ -42,7 +41,7 @@ public sealed partial class GunSystem
         if (!TryComp<BatteryComponent>(uid, out var battery))
             return;
 
-        UpdateShots(uid, component, battery.Charge, battery.MaxCharge);
+        UpdateShots(uid, component, battery.CurrentCharge, battery.MaxCharge);
     }
 
     private void UpdateShots(EntityUid uid, BatteryAmmoProviderComponent component, float charge, float maxCharge)
@@ -52,7 +51,7 @@ public sealed partial class GunSystem
 
         if (component.Shots != shots || component.Capacity != maxShots)
         {
-            Dirty(component);
+            Dirty(uid, component);
         }
 
         component.Shots = shots;
@@ -60,44 +59,21 @@ public sealed partial class GunSystem
         UpdateBatteryAppearance(uid, component);
     }
 
-    private void OnBatteryExaminableVerb(EntityUid uid, BatteryAmmoProviderComponent component, GetVerbsEvent<ExamineVerb> args)
+    private void OnBatteryDamageExamine(EntityUid uid, BatteryAmmoProviderComponent component, ref DamageExamineEvent args)
     {
-        if (!args.CanInteract || !args.CanAccess)
-            return;
-
         var damageSpec = GetDamage(component);
 
         if (damageSpec == null)
             return;
 
-        string damageType;
-
-        switch (component)
+        var damageType = component switch
         {
-            case HitscanBatteryAmmoProviderComponent:
-                damageType = Loc.GetString("damage-hitscan");
-                break;
-            case ProjectileBatteryAmmoProviderComponent:
-                damageType = Loc.GetString("damage-projectile");
-                break;
-            default:
-                throw new ArgumentOutOfRangeException();
-        }
-
-        var verb = new ExamineVerb()
-        {
-            Act = () =>
-            {
-                var markup = Damageable.GetDamageExamine(damageSpec, damageType);
-                Examine.SendExamineTooltip(args.User, uid, markup, false, false);
-            },
-            Text = Loc.GetString("damage-examinable-verb-text"),
-            Message = Loc.GetString("damage-examinable-verb-message"),
-            Category = VerbCategory.Examine,
-            Icon = new SpriteSpecifier.Texture(new ("/Textures/Interface/VerbIcons/smite.svg.192dpi.png")),
+            HitscanBatteryAmmoProviderComponent => Loc.GetString("damage-hitscan"),
+            ProjectileBatteryAmmoProviderComponent => Loc.GetString("damage-projectile"),
+            _ => throw new ArgumentOutOfRangeException(),
         };
 
-        args.Verbs.Add(verb);
+        _damageExamine.AddDamageExamine(args.Message, damageSpec, damageType);
     }
 
     private DamageSpecifier? GetDamage(BatteryAmmoProviderComponent component)
@@ -109,7 +85,7 @@ public sealed partial class GunSystem
             {
                 var p = (ProjectileComponent) projectile.Component;
 
-                if (p.Damage.Total > FixedPoint2.Zero)
+                if (!p.Damage.Empty)
                 {
                     return p.Damage;
                 }

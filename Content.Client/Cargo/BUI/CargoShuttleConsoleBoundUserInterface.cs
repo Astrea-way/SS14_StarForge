@@ -2,6 +2,7 @@ using Content.Client.Cargo.UI;
 using Content.Shared.Cargo.BUI;
 using JetBrains.Annotations;
 using Robust.Client.GameObjects;
+using Robust.Client.UserInterface;
 using Robust.Shared.Prototypes;
 
 namespace Content.Client.Cargo.BUI;
@@ -9,31 +10,19 @@ namespace Content.Client.Cargo.BUI;
 [UsedImplicitly]
 public sealed class CargoShuttleConsoleBoundUserInterface : BoundUserInterface
 {
+    [Dependency] private readonly IPrototypeManager _protoManager = default!;
+
+    [ViewVariables]
     private CargoShuttleMenu? _menu;
 
-    public CargoShuttleConsoleBoundUserInterface(ClientUserInterfaceComponent owner, Enum uiKey) : base(owner, uiKey) {}
+    public CargoShuttleConsoleBoundUserInterface(EntityUid owner, Enum uiKey) : base(owner, uiKey)
+    {
+    }
 
     protected override void Open()
     {
         base.Open();
-        var collection = IoCManager.Instance;
-
-        if (collection == null)
-            return;
-
-        _menu = new CargoShuttleMenu(collection.Resolve<IPrototypeManager>(), collection.Resolve<IEntitySystemManager>().GetEntitySystem<SpriteSystem>());
-        _menu.OnClose += Close;
-
-        _menu.OpenCentered();
-    }
-
-    protected override void Dispose(bool disposing)
-    {
-        base.Dispose(disposing);
-        if (disposing)
-        {
-            _menu?.Dispose();
-        }
+        _menu = this.CreateWindow<CargoShuttleMenu>();
     }
 
     protected override void UpdateState(BoundUserInterfaceState state)
@@ -42,6 +31,6 @@ public sealed class CargoShuttleConsoleBoundUserInterface : BoundUserInterface
         if (state is not CargoShuttleConsoleBoundUserInterfaceState cargoState) return;
         _menu?.SetAccountName(cargoState.AccountName);
         _menu?.SetShuttleName(cargoState.ShuttleName);
-        _menu?.SetOrders(cargoState.Orders);
+        _menu?.SetOrders(EntMan.System<SpriteSystem>(), _protoManager, cargoState.Orders);
     }
 }

@@ -1,58 +1,56 @@
 using Content.Client.CartridgeLoader;
 using Content.Shared.CartridgeLoader;
-using Content.Shared.CCVar;
 using Content.Shared.Containers.ItemSlots;
-using Content.Shared.CrewManifest;
 using Content.Shared.PDA;
 using JetBrains.Annotations;
-using Robust.Client.GameObjects;
 using Robust.Client.UserInterface;
-using Robust.Shared.Configuration;
 
 namespace Content.Client.PDA
 {
     [UsedImplicitly]
     public sealed class PdaBoundUserInterface : CartridgeLoaderBoundUserInterface
     {
-        [Dependency] private readonly IEntityManager? _entityManager = default!;
-        [Dependency] private readonly IConfigurationManager _configManager = default!;
+        private readonly PdaSystem _pdaSystem;
 
+        [ViewVariables]
         private PdaMenu? _menu;
 
-        public PdaBoundUserInterface(ClientUserInterfaceComponent owner, Enum uiKey) : base(owner, uiKey)
+        public PdaBoundUserInterface(EntityUid owner, Enum uiKey) : base(owner, uiKey)
         {
-            IoCManager.InjectDependencies(this);
+            _pdaSystem = EntMan.System<PdaSystem>();
         }
 
         protected override void Open()
         {
             base.Open();
-            SendMessage(new PdaRequestUpdateInterfaceMessage());
-            _menu = new PdaMenu();
+
+            if (_menu == null)
+                CreateMenu();
+        }
+
+        private void CreateMenu()
+        {
+            _menu = this.CreateWindow<PdaMenu>();
             _menu.OpenCenteredLeft();
-            _menu.OnClose += Close;
+
             _menu.FlashLightToggleButton.OnToggled += _ =>
             {
                 SendMessage(new PdaToggleFlashlightMessage());
             };
 
-            if (_configManager.GetCVar(CCVars.CrewManifestUnsecure))
-            {
-                _menu.CrewManifestButton.Visible = true;
-                _menu.CrewManifestButton.OnPressed += _ =>
-                {
-                    SendMessage(new CrewManifestOpenUiMessage());
-                };
-            }
-
             _menu.EjectIdButton.OnPressed += _ =>
             {
-                SendMessage(new ItemSlotButtonPressedEvent(PdaComponent.PdaIdSlotId));
+                SendPredictedMessage(new ItemSlotButtonPressedEvent(PdaComponent.PdaIdSlotId));
             };
 
             _menu.EjectPenButton.OnPressed += _ =>
             {
-                SendMessage(new ItemSlotButtonPressedEvent(PdaComponent.PdaPenSlotId));
+                SendPredictedMessage(new ItemSlotButtonPressedEvent(PdaComponent.PdaPenSlotId));
+            };
+
+            _menu.EjectPaiButton.OnPressed += _ =>
+            {
+                SendPredictedMessage(new ItemSlotButtonPressedEvent(PdaComponent.PdaPaiSlotId));
             };
 
             _menu.ActivateMusicButton.OnPressed += _ =>
@@ -96,9 +94,14 @@ namespace Content.Client.PDA
             if (state is not PdaUpdateState updateState)
                 return;
 
-            _menu?.UpdateState(updateState);
-        }
+            if (_menu == null)
+            {
+                _pdaSystem.Log.Error("PDA state received before menu was created.");
+                return;
+            }
 
+            _menu.UpdateState(updateState);
+        }
 
         protected override void AttachCartridgeUI(Control cartridgeUIFragment, string? title)
         {
@@ -121,18 +124,9 @@ namespace Content.Client.PDA
             _menu?.UpdateAvailablePrograms(programs);
         }
 
-        protected override void Dispose(bool disposing)
-        {
-            base.Dispose(disposing);
-            if (!disposing)
-                return;
-
-            _menu?.Dispose();
-        }
-
         private PdaBorderColorComponent? GetBorderColorComponent()
         {
-            return _entityManager?.GetComponentOrNull<PdaBorderColorComponent>(Owner.Owner);
+            return EntMan.GetComponentOrNull<PdaBorderColorComponent>(Owner);
         }
     }
 }

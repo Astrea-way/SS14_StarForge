@@ -6,20 +6,18 @@
   requirements:
     - !type:RoleTimeRequirement
       role: JobWarden
-      time: 21600 #6 hrs
-    - !type:RoleTimeRequirement
-      role: JobDetective
-      time: 7200 #2 hrs
+      time: 10800 #3 hrs
     - !type:RoleTimeRequirement
       role: JobSecurityOfficer
       time: 36000 #10 hrs
     - !type:DepartmentTimeRequirement
       department: Security
       time: 108000 # 30 hrs
+    - !type:OverallPlaytimeRequirement
+      time: 144000 #40 hrs
   weight: 10
   startingGear: HoSGear
-  icon: "HeadOfSecurity"
-  requireAdminNotify: true
+  icon: "JobIconHeadOfSecurity"
   supervisors: job-supervisors-captain
   canBeAntag: false
   access:
@@ -32,20 +30,23 @@
   - Service
   - External
   - Detective
+  - Cryogenics
+  special:
+  - !type:AddImplantSpecial
+    implants: [ MindShieldImplant ]
+  - !type:AddComponentSpecial
+    components:
+      - type: CommandStaff
 
 - type: startingGear
   id: HoSGear
   equipment:
-    jumpsuit: ClothingUniformJumpsuitHoS
-    back: ClothingBackpackHOSFilled
-    shoes: ClothingShoesBootsCombatFilled
-    outerClothing: ClothingOuterCoatHoSTrench
     eyes: ClothingEyesGlassesSecurity
-    head: ClothingHeadHatBeretHoS
     id: HoSPDA
     gloves: ClothingHandsGlovesCombat
     ears: ClothingHeadsetAltSecurity
-    belt: ClothingBeltSecurityFilled
-  innerclothingskirt: ClothingUniformJumpskirtHoS
-  satchel: ClothingBackpackSatchelHOSFilled
-  duffelbag: ClothingBackpackDuffelHOSFilled
+    pocket1: WeaponPistolMk58
+  storage:
+    back:
+    - Flash
+    - MagazinePistol

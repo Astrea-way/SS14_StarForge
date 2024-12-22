@@ -1,3 +1,4 @@
+using System.Numerics;
 using Content.Shared.Physics;
 using Robust.Shared.Map;
 using Robust.Shared.Map.Components;
@@ -10,7 +11,6 @@ namespace Content.Shared.Maps;
 /// </summary>
 public sealed class TurfSystem : EntitySystem
 {
-    [Dependency] private readonly IMapManager _mapMan = default!;
     [Dependency] private readonly EntityLookupSystem _entityLookup = default!;
     [Dependency] private readonly SharedTransformSystem _transform = default!;
 
@@ -44,7 +44,7 @@ public sealed class TurfSystem : EntitySystem
 
         var size = grid.TileSize;
         var localPos = new Vector2(indices.X * size + (size / 2f), indices.Y * size + (size / 2f));
-        var worldPos = matrix.Transform(localPos);
+        var worldPos = Vector2.Transform(localPos, matrix);
 
         // This is scaled to 95 % so it doesn't encompass walls on other tiles.
         var tileAabb = Box2.UnitCentered.Scale(0.95f * size);
@@ -84,5 +84,15 @@ public sealed class TurfSystem : EntitySystem
         }
 
         return false;
+    }
+
+    /// <summary>
+    /// Returns the location of the centre of the tile in grid coordinates.
+    /// </summary>
+    public EntityCoordinates GetTileCenter(TileRef turf)
+    {
+        var grid = Comp<MapGridComponent>(turf.GridUid);
+        var center = (turf.GridIndices + new Vector2(0.5f, 0.5f)) * grid.TileSize;
+        return new EntityCoordinates(turf.GridUid, center);
     }
 }

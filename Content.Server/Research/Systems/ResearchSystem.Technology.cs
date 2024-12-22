@@ -1,3 +1,4 @@
+using Content.Shared.Database;
 using Content.Shared.Research.Components;
 using Content.Shared.Research.Prototypes;
 using JetBrains.Annotations;
@@ -20,7 +21,7 @@ public sealed partial class ResearchSystem
         primaryDb.UnlockedTechnologies = otherDb.UnlockedTechnologies;
         primaryDb.UnlockedRecipes = otherDb.UnlockedRecipes;
 
-        Dirty(primaryDb);
+        Dirty(primaryUid, primaryDb);
 
         var ev = new TechnologyDatabaseModifiedEvent();
         RaiseLocalEvent(primaryUid, ref ev);
@@ -47,13 +48,16 @@ public sealed partial class ResearchSystem
     /// Tries to add a technology to a database, checking if it is able to
     /// </summary>
     /// <returns>If the technology was successfully added</returns>
-    public bool UnlockTechnology(EntityUid client, string prototypeid, ResearchClientComponent? component = null,
+    public bool UnlockTechnology(EntityUid client,
+        string prototypeid,
+        EntityUid user,
+        ResearchClientComponent? component = null,
         TechnologyDatabaseComponent? clientDatabase = null)
     {
         if (!PrototypeManager.TryIndex<TechnologyPrototype>(prototypeid, out var prototype))
             return false;
 
-        return UnlockTechnology(client, prototype, component, clientDatabase);
+        return UnlockTechnology(client, prototype, user, component, clientDatabase);
     }
 
     /// <summary>
@@ -62,6 +66,7 @@ public sealed partial class ResearchSystem
     /// <returns>If the technology was successfully added</returns>
     public bool UnlockTechnology(EntityUid client,
         TechnologyPrototype prototype,
+        EntityUid user,
         ResearchClientComponent? component = null,
         TechnologyDatabaseComponent? clientDatabase = null)
     {
@@ -78,6 +83,9 @@ public sealed partial class ResearchSystem
         TrySetMainDiscipline(prototype, serverEnt.Value);
         ModifyServerPoints(serverEnt.Value, -prototype.Cost);
         UpdateTechnologyCards(serverEnt.Value);
+
+        _adminLog.Add(LogType.Action, LogImpact.Medium,
+            $"{ToPrettyString(user):player} unlocked {prototype.ID} (discipline: {prototype.Discipline}, tier: {prototype.Tier}) at {ToPrettyString(client)}, for server {ToPrettyString(serverEnt.Value)}.");
         return true;
     }
 
@@ -117,26 +125,7 @@ public sealed partial class ResearchSystem
                 continue;
             component.UnlockedRecipes.Add(unlock);
         }
-        Dirty(component);
-
-        var ev = new TechnologyDatabaseModifiedEvent();
-        RaiseLocalEvent(uid, ref ev);
-    }
-
-    /// <summary>
-    /// Adds a lathe recipe to the specified technology database
-    /// without checking if it can be unlocked.
-    /// </summary>
-    public void AddLatheRecipe(EntityUid uid, string recipe, TechnologyDatabaseComponent? component = null)
-    {
-        if (!Resolve(uid, ref component))
-            return;
-
-        if (component.UnlockedRecipes.Contains(recipe))
-            return;
-
-        component.UnlockedRecipes.Add(recipe);
-        Dirty(component);
+        Dirty(uid, component);
 
         var ev = new TechnologyDatabaseModifiedEvent();
         RaiseLocalEvent(uid, ref ev);
@@ -177,6 +166,6 @@ public sealed partial class ResearchSystem
         component.SupportedDisciplines = new List<string>();
         component.UnlockedTechnologies = new List<string>();
         component.UnlockedRecipes = new List<string>();
-        Dirty(component);
+        Dirty(uid, component);
     }
 }

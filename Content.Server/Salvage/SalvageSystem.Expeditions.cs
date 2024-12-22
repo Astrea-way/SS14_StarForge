@@ -1,17 +1,16 @@
-using Content.Server.Cargo.Components;
-using Content.Server.Cargo.Systems;
-using Content.Server.Salvage.Expeditions;
-using Content.Server.Salvage.Expeditions.Structure;
-using Content.Server.Station.Systems;
-using Content.Shared.CCVar;
-using Content.Shared.Random;
-using Content.Shared.Random.Helpers;
-using Content.Shared.Examine;
-using Content.Shared.Salvage;
-using Robust.Shared.CPUJob.JobQueues;
-using Robust.Shared.CPUJob.JobQueues.Queues;
 using System.Linq;
 using System.Threading;
+using Content.Server.Salvage.Expeditions;
+using Content.Server.Salvage.Expeditions.Structure;
+using Content.Shared.CCVar;
+using Content.Shared.Examine;
+using Content.Shared.Random.Helpers;
+using Content.Shared.Salvage.Expeditions;
+using Robust.Shared.Audio;
+using Robust.Shared.CPUJob.JobQueues;
+using Robust.Shared.CPUJob.JobQueues.Queues;
+using Robust.Shared.GameStates;
+using Robust.Shared.Map;
 
 namespace Content.Server.Salvage;
 
@@ -21,16 +20,13 @@ public sealed partial class SalvageSystem
      * Handles setup / teardown of salvage expeditions.
      */
 
-    [Dependency] private readonly CargoSystem _cargo = default!;
-
-    private const int MissionLimit = 5;
+    private const int MissionLimit = 3;
 
     private readonly JobQueue _salvageQueue = new();
     private readonly List<(SpawnSalvageMissionJob Job, CancellationTokenSource CancelToken)> _salvageJobs = new();
     private const double SalvageJobTime = 0.002;
 
     private float _cooldown;
-    private float _failedCooldown;
 
     private void InitializeExpeditions()
     {
@@ -38,23 +34,22 @@ public sealed partial class SalvageSystem
         SubscribeLocalEvent<SalvageExpeditionConsoleComponent, EntParentChangedMessage>(OnSalvageConsoleParent);
         SubscribeLocalEvent<SalvageExpeditionConsoleComponent, ClaimSalvageMessage>(OnSalvageClaimMessage);
 
-        SubscribeLocalEvent<SalvageExpeditionDataComponent, EntityUnpausedEvent>(OnDataUnpaused);
-
+        SubscribeLocalEvent<SalvageExpeditionComponent, MapInitEvent>(OnExpeditionMapInit);
         SubscribeLocalEvent<SalvageExpeditionComponent, ComponentShutdown>(OnExpeditionShutdown);
-        SubscribeLocalEvent<SalvageExpeditionComponent, EntityUnpausedEvent>(OnExpeditionUnpaused);
+        SubscribeLocalEvent<SalvageExpeditionComponent, ComponentGetState>(OnExpeditionGetState);
 
         SubscribeLocalEvent<SalvageStructureComponent, ExaminedEvent>(OnStructureExamine);
 
         _cooldown = _configurationManager.GetCVar(CCVars.SalvageExpeditionCooldown);
-        _failedCooldown = _configurationManager.GetCVar(CCVars.SalvageExpeditionFailedCooldown);
-        _configurationManager.OnValueChanged(CCVars.SalvageExpeditionCooldown, SetCooldownChange);
-        _configurationManager.OnValueChanged(CCVars.SalvageExpeditionFailedCooldown, SetFailedCooldownChange);
+        Subs.CVar(_configurationManager, CCVars.SalvageExpeditionCooldown, SetCooldownChange);
     }
 
-    private void ShutdownExpeditions()
+    private void OnExpeditionGetState(EntityUid uid, SalvageExpeditionComponent component, ref ComponentGetState args)
     {
-        _configurationManager.UnsubValueChanged(CCVars.SalvageExpeditionCooldown, SetCooldownChange);
-        _configurationManager.UnsubValueChanged(CCVars.SalvageExpeditionFailedCooldown, SetFailedCooldownChange);
+        args.State = new SalvageExpeditionComponentState()
+        {
+            Stage = component.Stage
+        };
     }
 
     private void SetCooldownChange(float obj)
@@ -72,23 +67,15 @@ public sealed partial class SalvageSystem
         _cooldown = obj;
     }
 
-    private void SetFailedCooldownChange(float obj)
+    private void OnExpeditionMapInit(EntityUid uid, SalvageExpeditionComponent component, MapInitEvent args)
     {
-        var diff = obj - _failedCooldown;
-
-        var query = AllEntityQuery<SalvageExpeditionDataComponent>();
-
-        while (query.MoveNext(out var comp))
-        {
-            comp.NextOffer += TimeSpan.FromSeconds(diff);
-        }
-
-        _failedCooldown = obj;
+        var selectedFile = _audio.GetSound(component.Sound);
+        component.SelectedSong = new SoundPathSpecifier(selectedFile, component.Sound.Params);
     }
 
     private void OnExpeditionShutdown(EntityUid uid, SalvageExpeditionComponent component, ComponentShutdown args)
     {
-        component.Stream?.Stop();
+        component.Stream = _audio.Stop(component.Stream);
 
         foreach (var (job, cancelToken) in _salvageJobs.ToArray())
         {
@@ -105,18 +92,8 @@ public sealed partial class SalvageSystem
         // Finish mission
         if (TryComp<SalvageExpeditionDataComponent>(component.Station, out var data))
         {
-            FinishExpedition(data, uid, component, null);
+            FinishExpedition((component.Station, data), uid);
         }
-    }
-
-    private void OnDataUnpaused(EntityUid uid, SalvageExpeditionDataComponent component, ref EntityUnpausedEvent args)
-    {
-        component.NextOffer += args.PausedTime;
-    }
-
-    private void OnExpeditionUnpaused(EntityUid uid, SalvageExpeditionComponent component, ref EntityUnpausedEvent args)
-    {
-        component.EndTime += args.PausedTime;
     }
 
     private void UpdateExpeditions()
@@ -134,7 +111,8 @@ public sealed partial class SalvageSystem
             }
         }
 
-        foreach (var comp in EntityQuery<SalvageExpeditionDataComponent>())
+        var query = EntityQueryEnumerator<SalvageExpeditionDataComponent>();
+        while (query.MoveNext(out var uid, out var comp))
         {
             // Update offers
             if (comp.NextOffer > currentTime || comp.Claimed)
@@ -143,106 +121,34 @@ public sealed partial class SalvageSystem
             comp.Cooldown = false;
             comp.NextOffer += TimeSpan.FromSeconds(_cooldown);
             GenerateMissions(comp);
-            UpdateConsoles(comp);
+            UpdateConsoles((uid, comp));
         }
     }
 
-    private void FinishExpedition(SalvageExpeditionDataComponent component, EntityUid uid, SalvageExpeditionComponent expedition, EntityUid? shuttle)
+    private void FinishExpedition(Entity<SalvageExpeditionDataComponent> expedition, EntityUid uid)
     {
-        // Finish mission cleanup.
-        switch (expedition.MissionParams.MissionType)
-        {
-            // Handles the mining taxation.
-            case SalvageMissionType.Mining:
-                expedition.Completed = true;
-
-                if (shuttle != null && TryComp<SalvageMiningExpeditionComponent>(uid, out var mining))
-                {
-                    var xformQuery = GetEntityQuery<TransformComponent>();
-                    var entities = new List<EntityUid>();
-                    MiningTax(entities, shuttle.Value, mining, xformQuery);
-
-                    var tax = GetMiningTax(expedition.MissionParams.Difficulty);
-                    _random.Shuffle(entities);
-
-                    // TODO: urgh this pr is already taking so long I'll do this later
-                    for (var i = 0; i < Math.Ceiling(entities.Count * tax); i++)
-                    {
-                        // QueueDel(entities[i]);
-                    }
-                }
-
-                break;
-        }
-
-        // Handle payout after expedition has finished
-        if (expedition.Completed)
-        {
-            Log.Debug($"Completed mission {expedition.MissionParams.MissionType} with seed {expedition.MissionParams.Seed}");
-            component.NextOffer = _timing.CurTime + TimeSpan.FromSeconds(_cooldown);
-            Announce(uid, Loc.GetString("salvage-expedition-mission-completed"));
-            GiveRewards(expedition);
-        }
-        else
-        {
-            Log.Debug($"Failed mission {expedition.MissionParams.MissionType} with seed {expedition.MissionParams.Seed}");
-            component.NextOffer = _timing.CurTime + TimeSpan.FromSeconds(_failedCooldown);
-            Announce(uid, Loc.GetString("salvage-expedition-mission-failed"));
-        }
-
+        var component = expedition.Comp;
+        component.NextOffer = _timing.CurTime + TimeSpan.FromSeconds(_cooldown);
+        Announce(uid, Loc.GetString("salvage-expedition-mission-completed"));
         component.ActiveMission = 0;
         component.Cooldown = true;
-        UpdateConsoles(component);
-    }
-
-    /// <summary>
-    /// Deducts ore tax for mining.
-    /// </summary>
-    private void MiningTax(List<EntityUid> entities, EntityUid entity, SalvageMiningExpeditionComponent mining, EntityQuery<TransformComponent> xformQuery)
-    {
-        if (!mining.ExemptEntities.Contains(entity))
-        {
-            entities.Add(entity);
-        }
-
-        var xform = xformQuery.GetComponent(entity);
-        var children = xform.ChildEnumerator;
-
-        while (children.MoveNext(out var child))
-        {
-            MiningTax(entities, child.Value, mining, xformQuery);
-        }
+        UpdateConsoles(expedition);
     }
 
     private void GenerateMissions(SalvageExpeditionDataComponent component)
     {
         component.Missions.Clear();
-        var configs = Enum.GetValues<SalvageMissionType>().ToList();
-
-        if (configs.Count == 0)
-            return;
-
-        // Temporarily removed coz it SUCKS
-        configs.Remove(SalvageMissionType.Mining);
 
         for (var i = 0; i < MissionLimit; i++)
         {
-            _random.Shuffle(configs);
-            var rating = (DifficultyRating) i;
-
-            foreach (var config in configs)
+            var mission = new SalvageMissionParams
             {
-                var mission = new SalvageMissionParams()
-                {
-                    Index = component.NextIndex,
-                    MissionType = config,
-                    Seed = _random.Next(),
-                    Difficulty = rating,
-                };
+                Index = component.NextIndex,
+                Seed = _random.Next(),
+                Difficulty = "Moderate",
+            };
 
-                component.Missions[component.NextIndex++] = mission;
-                break;
-            }
+            component.Missions[component.NextIndex++] = mission;
         }
     }
 
@@ -252,20 +158,24 @@ public sealed partial class SalvageSystem
         return new SalvageExpeditionConsoleState(component.NextOffer, component.Claimed, component.Cooldown, component.ActiveMission, missions);
     }
 
-    private void SpawnMission(SalvageMissionParams missionParams, EntityUid station)
+    private void SpawnMission(SalvageMissionParams missionParams, EntityUid station, EntityUid? coordinatesDisk)
     {
         var cancelToken = new CancellationTokenSource();
         var job = new SpawnSalvageMissionJob(
             SalvageJobTime,
             EntityManager,
             _timing,
+            _logManager,
             _mapManager,
             _prototypeManager,
-            _tileDefManager,
+            _anchorable,
             _biome,
             _dungeon,
-            this,
+            _metaData,
+            _transform,
+            _mapSystem,
             station,
+            coordinatesDisk,
             missionParams,
             cancelToken.Token);
 
@@ -276,22 +186,5 @@ public sealed partial class SalvageSystem
     private void OnStructureExamine(EntityUid uid, SalvageStructureComponent component, ExaminedEvent args)
     {
         args.PushMarkup(Loc.GetString("salvage-expedition-structure-examine"));
-    }
-
-    private void GiveRewards(SalvageExpeditionComponent comp)
-    {
-        // send it to cargo, no rewards otherwise.
-        if (!TryComp<StationCargoOrderDatabaseComponent>(comp.Station, out var cargoDb))
-        {
-            return;
-        }
-
-        foreach (var reward in comp.Rewards)
-        {
-            var sender = Loc.GetString("cargo-gift-default-sender");
-            var desc = Loc.GetString("salvage-expedition-reward-description");
-            var dest = Loc.GetString("cargo-gift-default-dest");
-            _cargo.AddAndApproveOrder(cargoDb, reward, 0, 1, sender, desc, dest);
-        }
     }
 }

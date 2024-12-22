@@ -1,5 +1,6 @@
 using Robust.Client.GameObjects;
 using Content.Shared.Speech.Components;
+using Robust.Client.UserInterface;
 
 namespace Content.Client.Weapons.Melee.UI;
 
@@ -8,9 +9,10 @@ namespace Content.Client.Weapons.Melee.UI;
 /// </summary>
 public sealed class MeleeSpeechBoundUserInterface : BoundUserInterface
 {
+    [ViewVariables]
     private MeleeSpeechWindow? _window;
 
-    public MeleeSpeechBoundUserInterface(ClientUserInterfaceComponent owner, Enum uiKey) : base(owner, uiKey)
+    public MeleeSpeechBoundUserInterface(EntityUid owner, Enum uiKey) : base(owner, uiKey)
     {
     }
 
@@ -18,16 +20,9 @@ public sealed class MeleeSpeechBoundUserInterface : BoundUserInterface
     {
         base.Open();
 
-        _window = new MeleeSpeechWindow();
-        if (State != null)
-            UpdateState(State);
-
-        _window.OpenCentered();
-
-        _window.OnClose += Close;
+        _window = this.CreateWindow<MeleeSpeechWindow>();
         _window.OnBattlecryEntered += OnBattlecryChanged;
     }
-
 
     private void OnBattlecryChanged(string newBattlecry)
     {
@@ -50,7 +45,9 @@ public sealed class MeleeSpeechBoundUserInterface : BoundUserInterface
     protected override void Dispose(bool disposing)
     {
         base.Dispose(disposing);
-        if (!disposing) return;
-		_window?.Dispose();
-	}
+        if (!disposing)
+            return;
+
+        _window?.Dispose();
+    }
 }

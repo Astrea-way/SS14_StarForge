@@ -1,4 +1,5 @@
 using System.Linq;
+using System.Numerics;
 using Content.Server.Anomaly.Components;
 using Content.Server.Weapons.Ranged.Systems;
 using Content.Shared.Anomaly.Components;
@@ -30,12 +31,12 @@ public sealed class ProjectileAnomalySystem : EntitySystem
 
     private void OnPulse(EntityUid uid, ProjectileAnomalyComponent component, ref AnomalyPulseEvent args)
     {
-        ShootProjectilesAtEntities(uid, component, args.Severity);
+        ShootProjectilesAtEntities(uid, component, args.Severity * args.PowerModifier);
     }
 
     private void OnSupercritical(EntityUid uid, ProjectileAnomalyComponent component, ref AnomalySupercriticalEvent args)
     {
-        ShootProjectilesAtEntities(uid, component, 1.0f);
+        ShootProjectilesAtEntities(uid, component, args.PowerModifier);
     }
 
     private void ShootProjectilesAtEntities(EntityUid uid, ProjectileAnomalyComponent component, float severity)
@@ -54,10 +55,10 @@ public sealed class ProjectileAnomalySystem : EntitySystem
                 priority.Add(entity);
         }
 
-        Logger.Debug($"shots: {projectileCount}");
+        Log.Debug($"shots: {projectileCount}");
         while (projectileCount > 0)
         {
-            Logger.Debug($"{projectileCount}");
+            Log.Debug($"{projectileCount}");
             var target = priority.Any()
                 ? _random.PickAndTake(priority)
                 : _random.Pick(inRange);

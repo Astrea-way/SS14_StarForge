@@ -1,7 +1,7 @@
 {
     "version": 1,
     "license": "CC-BY-SA-3.0",
-    "copyright": "Sprited by discord Kheprep#7153",
+    "copyright": "Taken from tgstation at commit https://github.com/tgstation/tgstation/commit/456cd10d94084c7c2574f628cf7ac9b67087ba26. Recolored, adjusted, and inhands created by EmoGarbage404",
     "size": {
         "x": 32,
         "y": 32
@@ -25,21 +25,10 @@
             "directions": 4
         },
         {
-            "name": "inhand-left-unshaded",
-            "directions": 4
-        },
-        {
-            "name": "inhand-right-unshaded",
-            "directions": 4
-        },
-        {
             "name": "rope"
         },
         {
             "name": "hook"
-        },
-        {
-            "name": "hook-unshaded"
         }
     ]
 }
